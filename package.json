@@ -1,20 +1,5 @@
 {
-  "name": "problem-4",
-  "version": "1.0.0",
-  "description": "Three different implementations of sum to n function",
-  "main": "answer.ts",
-  "scripts": {
-    "start": "ts-node answer.ts",
-    "test": "ts-node test-runner.ts",
-    "build": "tsc answer.ts",
-    "dev": "ts-node answer.ts"
-  },
-  "devDependencies": {
-    "typescript": "^5.0.0",
-    "ts-node": "^10.9.0",
-    "@types/node": "^20.0.0"
-  },
-  "keywords": ["typescript", "algorithms", "sum", "performance"],
-  "author": "",
-  "license": "MIT"
+  "dependencies": {
+    "swagger-autogen": "^2.23.7"
+  }
 }
