@@ -1,0 +1,33 @@
+---
+title: WebSocket Connection and Live Score Push
+---
+sequenceDiagram
+    actor Browser
+    participant Server as API Server (Fastify)
+    participant Redis
+    participant DB as PostgreSQL
+
+    Browser->>Server: HTTP Upgrade ws://…/api/v1/ws?token=<jwt>
+    Server->>Server: jwt.verify(token, publicKey)
+
+    alt Token invalid
+        Server-->>Browser: Close frame 4401 Unauthorized
+    else Token valid
+        Server-->>Browser: 101 Switching Protocols
+        Server->>Server: Register socket in local connection map { accountId → socket }
+
+        Note over Server,Redis: Score update happens (via POST /api/v1/actions)
+
+        Redis-->>Server: MESSAGE scoreboard:refresh { accountId }
+        Server->>Redis: ZREVRANGE leaderboard 0 9 WITHSCORES
+        Redis-->>Server: top-10 [{ member, score }]
+        Server->>DB: SELECT id, username FROM accounts WHERE id = ANY($1)
+        DB-->>Server: [{ id, username }, ...]
+        Server->>Server: Build rankings [{ rank, username, score }]
+        Server-->>Browser: push { type: "scoreboard.updated", rankings: [...] }
+
+        Note over Browser,Server: Client disconnects
+
+        Browser->>Server: WS Close frame
+        Server->>Server: Remove socket from connection map
+    end

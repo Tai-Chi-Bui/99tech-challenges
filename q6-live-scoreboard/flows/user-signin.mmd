@@ -1,0 +1,23 @@
+---
+title: User Sign-In
+---
+sequenceDiagram
+    actor Browser
+    participant Handler as POST /api/v1/auth/signin
+    participant DB as PostgreSQL
+
+    Browser->>Handler: { email, password }
+    Handler->>Handler: Validate payload (Valibot)
+    Handler->>DB: SELECT * FROM accounts WHERE email = $1 AND deleted_at IS NULL
+    alt Account not found
+        Handler-->>Browser: 401 Unauthorized
+    else Account found
+        Handler->>Handler: bcrypt.compare(password, password_hash)
+        alt Password mismatch
+            Handler-->>Browser: 401 Unauthorized
+        else Password correct
+            Handler->>Handler: jwt.sign({ sub: accountId, username }, privateKey, RS256)
+            Handler->>Handler: generate opaque refreshToken (random bytes, store hash in DB)
+            Handler-->>Browser: 200 OK { accessToken, expiresIn: 900 }<br/>Set-Cookie: refreshToken=… (HttpOnly; Secure; SameSite=Strict)
+        end
+    end

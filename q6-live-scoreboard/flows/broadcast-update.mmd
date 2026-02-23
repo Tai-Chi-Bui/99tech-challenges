@@ -1,0 +1,18 @@
+---
+title: Scoreboard Broadcast via Redis Pub/Sub
+---
+sequenceDiagram
+    participant Redis
+    participant Server as API Server<br/>(Redis subscriber)
+    participant DB as PostgreSQL
+    participant Sockets as Connected WebSocket Clients
+
+    Note over Redis,Server: Triggered by PUBLISH scoreboard:refresh after a score update
+
+    Redis-->>Server: MESSAGE scoreboard:refresh { accountId }
+    Server->>Redis: ZREVRANGE leaderboard 0 9 WITHSCORES
+    Redis-->>Server: [{ member: "1", score: "500" }, { member: "3", score: "420" }, ...]
+    Server->>DB: SELECT id, username FROM accounts WHERE id = ANY($1)
+    DB-->>Server: [{ id: 1, username: "alice" }, { id: 3, username: "bob" }, ...]
+    Server->>Server: Build rankings [{ rank, username, score }]
+    Server->>Sockets: broadcast to all local WS connections<br/>{ type: "scoreboard.updated", rankings: [...] }

@@ -1,0 +1,37 @@
+---
+title: Complete Action — Score Update
+---
+sequenceDiagram
+    actor Browser
+    participant Guard as JWT Auth Guard
+    participant Handler as POST /api/v1/actions
+    participant DB as PostgreSQL
+    participant Redis
+
+    Browser->>Guard: POST /api/v1/actions { actionId }<br/>Authorization: Bearer <token>
+    Guard->>Guard: jwt.verify(token, publicKey)
+
+    alt Token invalid or expired
+        Guard-->>Browser: 401 Unauthorized
+    else Token valid
+        Guard->>Handler: Forward request with decoded identity { sub: accountId }
+        Handler->>Handler: Validate { actionId } (Valibot)
+
+        alt Validation fails
+            Handler-->>Browser: 422 Unprocessable Entity { issues }
+        else Valid
+            Handler->>DB: SELECT * FROM actions WHERE id = $1 AND retired_at IS NULL
+            alt Action not found or retired
+                Handler-->>Browser: 400 Bad Request { message: "Unknown action" }
+            else Action found
+                Handler->>DB: BEGIN TRANSACTION
+                Handler->>DB: INSERT INTO action_log (account_id, action_id, points_earned)
+                Handler->>DB: UPDATE score_ledger SET total_points = total_points + $points,<br/>last_activity_at = NOW() WHERE account_id = $1
+                Handler->>DB: COMMIT
+                DB-->>Handler: updated total_points
+                Handler->>Redis: ZADD leaderboard {total_points} {accountId}
+                Handler->>Redis: PUBLISH scoreboard:refresh { accountId }
+                Handler-->>Browser: 200 OK { success: true, newScore: total_points }
+            end
+        end
+    end

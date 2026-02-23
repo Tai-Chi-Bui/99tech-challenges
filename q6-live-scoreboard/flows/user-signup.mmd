@@ -1,0 +1,25 @@
+---
+title: Account Registration
+---
+sequenceDiagram
+    actor Browser
+    participant Handler as POST /api/v1/auth/signup
+    participant DB as PostgreSQL
+
+    Browser->>Handler: { username, email, password, confirmPassword }
+    Handler->>Handler: Validate payload (Valibot)
+
+    alt Validation fails
+        Handler-->>Browser: 422 Unprocessable Entity { issues }
+    else Valid
+        Handler->>DB: SELECT id FROM accounts WHERE email = $1
+        alt Email already registered
+            Handler-->>Browser: 409 Conflict
+        else New email
+            Handler->>Handler: bcrypt.hash(password, 12)
+            Handler->>DB: INSERT INTO accounts (username, email, password_hash)
+            DB-->>Handler: new account row
+            Handler->>DB: INSERT INTO score_ledger (account_id, total_points)
+            Handler-->>Browser: 201 Created { accountId, username }
+        end
+    end

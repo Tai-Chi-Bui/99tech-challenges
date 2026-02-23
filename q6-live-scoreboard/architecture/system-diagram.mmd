@@ -1,0 +1,26 @@
+---
+title: Live Scoreboard — Component Diagram
+---
+graph TB
+    subgraph Clients
+        Browser["Browser / Mobile Client"]
+    end
+
+    subgraph API["API Server (Fastify, containerised)"]
+        REST["REST Handlers\n/auth/signup\n/auth/signin\n/actions\n/leaderboard"]
+        WS["WebSocket Handler\n/ws"]
+        Sub["Redis Subscriber\nscoreboard:refresh"]
+    end
+
+    subgraph Storage
+        PG["PostgreSQL 17\naccounts, actions\naction_log, score_ledger"]
+        Redis["Redis\nSorted Set: leaderboard\nPub/Sub: scoreboard:refresh"]
+    end
+
+    Browser -->|"HTTP REST"| REST
+    Browser -->|"WebSocket"| WS
+    REST -->|"SQL (Prisma)"| PG
+    REST -->|"ZADD / PUBLISH"| Redis
+    Redis -->|"MESSAGE"| Sub
+    Sub -->|"push rankings"| WS
+    WS -->|"scoreboard.updated"| Browser

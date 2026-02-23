@@ -1,0 +1,23 @@
+---
+title: Access Token Refresh
+---
+sequenceDiagram
+    actor Browser
+    participant Handler as POST /api/v1/auth/refresh
+    participant DB as PostgreSQL
+
+    Browser->>Handler: POST /api/v1/auth/refresh<br/>Cookie: refreshToken=<opaque_token>
+
+    alt Cookie missing
+        Handler-->>Browser: 401 Unauthorized
+    else Cookie present
+        Handler->>DB: SELECT account_id, expires_at FROM refresh_tokens<br/>WHERE token_hash = sha256($1) AND revoked_at IS NULL
+        alt Token not found or expired
+            Handler-->>Browser: 401 Unauthorized { message: "Invalid or expired refresh token" }
+        else Token valid
+            Handler->>DB: UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1
+            Handler->>Handler: jwt.sign({ sub: accountId, username }, privateKey, RS256)
+            Handler->>Handler: generate new opaque refreshToken (random bytes, store hash in DB)
+            Handler-->>Browser: 200 OK { accessToken, expiresIn: 900 }<br/>Set-Cookie: refreshToken=… (HttpOnly; Secure; SameSite=Strict)
+        end
+    end
