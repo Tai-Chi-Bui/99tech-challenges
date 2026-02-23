@@ -7,13 +7,13 @@ graph TB
     end
 
     subgraph API["API Server (Fastify, containerised)"]
-        REST["REST Handlers\n/auth/signup\n/auth/signin\n/actions\n/leaderboard"]
+        REST["REST Handlers\n/auth/signup\n/auth/signin\n/auth/refresh\n/actions\n/leaderboard"]
         WS["WebSocket Handler\n/ws"]
         Sub["Redis Subscriber\nscoreboard:refresh"]
     end
 
     subgraph Storage
-        PG["PostgreSQL 17\naccounts, actions\naction_log, score_ledger"]
+        PG["PostgreSQL 17\naccounts, actions\naction_log\nscore_ledger, refresh_tokens"]
         Redis["Redis\nSorted Set: leaderboard\nPub/Sub: scoreboard:refresh"]
     end
 

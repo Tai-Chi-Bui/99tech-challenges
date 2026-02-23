@@ -103,6 +103,33 @@ CREATE TABLE score_ledger (
 
 ---
 
+### `refresh_tokens`
+
+Stores hashed refresh tokens for session continuity. Each row represents one active or revoked token.
+
+| Column | Type | Constraints | Notes |
+|---|---|---|---|
+| `id` | `SERIAL` | PRIMARY KEY | |
+| `account_id` | `INTEGER` | FK → accounts(id), NOT NULL | Owner of the token |
+| `token_hash` | `TEXT` | NOT NULL, UNIQUE | `sha256` of the opaque token sent to the client |
+| `expires_at` | `TIMESTAMPTZ` | NOT NULL | Absolute expiry; typically 30 days from issuance |
+| `revoked_at` | `TIMESTAMPTZ` | — | Set on use (rotation) or explicit sign-out; NULL means valid |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT NOW() | |
+
+```sql
+CREATE TABLE refresh_tokens (
+  id          SERIAL PRIMARY KEY,
+  account_id  INTEGER NOT NULL REFERENCES accounts(id),
+  token_hash  TEXT NOT NULL UNIQUE,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  revoked_at  TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX ON refresh_tokens (account_id);
+```
+
+---
+
 ## Redis Structures
 
 ### Sorted Set — `leaderboard`
